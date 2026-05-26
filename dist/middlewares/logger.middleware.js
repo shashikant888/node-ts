@@ -1,0 +1,15 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.requestLogger = void 0;
+const logger_1 = require("../utils/logger");
+const requestLogger = (req, res, next) => {
+    logger_1.logger.info({
+        method: req.method,
+        url: req.url,
+        parmas: req.params,
+        body: req.body,
+    }, 'Incoming request');
+    next();
+};
+exports.requestLogger = requestLogger;
+//# sourceMappingURL=logger.middleware.js.map

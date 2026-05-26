@@ -1,0 +1,34 @@
+src/
+│
+├── app.ts
+├── server.ts
+│
+├── config/
+│   ├── env.ts
+│   └── index.ts
+│
+├── modules/
+│   └── user/
+│       ├── user.controller.ts
+│       ├── user.service.ts
+│       ├── user.repository.ts
+│       ├── user.routes.ts
+│       ├── user.types.ts
+│       └── user.validator.ts
+│
+├── middlewares/
+│   ├── error.middleware.ts
+│   └── auth.middleware.ts
+│
+├── utils/
+│   ├── logger.ts
+│   └── response.ts
+│
+├── lib/
+│   └── db.ts
+│
+├── types/
+│   └── global.d.ts
+│
+└── constants/
+    └── index.ts
