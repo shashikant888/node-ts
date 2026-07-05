@@ -1,7 +1,8 @@
+import { Pool } from "pg";
 import { pool } from "../../config/db";
 
 export class UserService {
-  constructor (pool){
+  constructor (pool: Pool){
     
   }
   async getUserById(id: Number) {
@@ -62,6 +63,7 @@ export class UserService {
       `,
       [id]
     )
-    return { msg: response.rowCount > 0 ? 'Done' : 'Not Found' }; 
+    const count: number = response?.rowCount ?? 0
+    return { msg: count > 0 ? 'Done' : 'Not Found' }; 
   }
 }
