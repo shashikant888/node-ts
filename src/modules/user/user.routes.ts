@@ -8,14 +8,12 @@ import { createUserSchema } from './user.validator';
 const router = Router();
 
 container.register(UserService);
-container.register(UserController, [UserService])
+container.register(UserController, [UserService]);
 
-const userController = container.get(UserController)
-
-// const userService = new UserService();
-// const userController = new UserController(userService);
+const userController = container.get(UserController);
 
 router.get('/', userController.getUsers);
+router.get('/:id', userController.getUser);
 router.post('/', validate(createUserSchema), userController.createUser);
 
 export default router;

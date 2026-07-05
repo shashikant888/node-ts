@@ -369,16 +369,6 @@ Database
 
 ---
 
-# 🚀 Next Steps
-
-* Database (Prisma)
-* Caching (Redis)
-* Queues (BullMQ)
-* Rate limiting
-* Auth (JWT)
-
----
-
 # 💡 Golden Rules
 
 * Keep layers separated
