@@ -42,3 +42,7 @@ prisma.$on("error" as any, (e: any) => {
 });
 
 export { prisma, pool };
+
+export class PrismaService {
+  public client = prisma;
+}

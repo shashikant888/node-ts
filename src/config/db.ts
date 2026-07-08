@@ -7,3 +7,7 @@ export const pool = new Pool({
     password: 'shashi',
     database: 'node_ts_db'
 })
+
+export class DatabaseService {
+  public pool = pool;
+}
