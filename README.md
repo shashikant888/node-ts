@@ -383,3 +383,135 @@ Database
 # 🎯 You now have
 
 👉 A production-ready backend foundation
+
+---
+
+# 🔌 18. PostgreSQL + Prisma VM Setup (Production Ready)
+
+Unlike serverless deployments (which open database connections on-demand and close them quickly), **VM (Virtual Machine) or VPS deployments** run a persistent Node.js server. 
+
+To handle traffic robustly on a VM without exhausting database connections, we use a custom connection pool coupled with Prisma 7+.
+
+## Why `@prisma/adapter-pg`?
+In **Prisma 7 and later**, the client engine was decoupled from database drivers. For standard PostgreSQL VM connections, Prisma **mandates** a driver adapter. We use `@prisma/adapter-pg` paired with Node's standard `pg.Pool`.
+
+### Step 1: Install Database Dependencies
+```bash
+pnpm add @prisma/client pg @prisma/adapter-pg
+pnpm add -D prisma @types/pg
+```
+
+### Step 2: Set up Database Schema
+Create `prisma/schema.prisma`:
+```prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+model User {
+  id    Int     @id @default(autoincrement())
+  email String  @unique
+  name  String?
+}
+```
+
+### Step 3: Production Connection Utility (`prisma.ts`)
+Create a custom pool and client instance inside `src/lib/prisma.ts`. This controls pool limits (`max`) and connection timeouts to prevent overloading your PostgreSQL instance.
+
+```typescript
+import "dotenv/config";
+import { Pool } from "pg";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../../generated/prisma/client";
+import { logger } from "../utils/logger";
+
+const connectionString = process.env.DATABASE_URL;
+
+// Connection Pool config for VM
+const pool = new Pool({
+  connectionString,
+  max: 10,                 // Maximum active connections in pool
+  idleTimeoutMillis: 30000, // Close idle connections after 30s
+  connectionTimeoutMillis: 2000, // Fail fast if connection takes > 2s
+});
+
+const adapter = new PrismaPg(pool);
+
+export const prisma = new PrismaClient({
+  adapter,
+  log: [
+    { emit: "event", level: "query" },
+    { emit: "event", level: "info" },
+    { emit: "event", level: "warn" },
+    { emit: "event", level: "error" },
+  ],
+});
+
+// Bind Prisma's event logs to Pino
+prisma.$on("query" as any, (e: any) => {
+  logger.debug({ query: e.query, params: e.params, duration: `${e.duration}ms` }, "Prisma Query");
+});
+prisma.$on("info" as any, (e: any) => logger.info(e.message));
+prisma.$on("warn" as any, (e: any) => logger.warn(e.message));
+prisma.$on("error" as any, (e: any) => logger.error(e.message));
+```
+
+### Step 4: Eager Startup Check & Graceful Shutdown (`server.ts`)
+In production, your server should **fail-fast** if it cannot reach the database on boot, and **clean up connections** when it terminates.
+
+```typescript
+import app from './app';
+import { ENV } from './config/env';
+import { prisma, pool } from './lib/prisma';
+import { logger } from './utils/logger';
+
+async function startServer() {
+  try {
+    logger.info("Connecting to database...");
+    
+    // Test the database connection eagerly on boot
+    await prisma.$connect();
+    logger.info("Database connection established successfully.");
+
+    const server = app.listen(ENV.PORT, () => {
+      logger.info(`🚀 Server running on port ${ENV.PORT}`);
+    });
+
+    // Handle graceful shutdowns (kills active pools cleanly)
+    const shutdown = async (signal: string) => {
+      logger.info(`Received ${signal}. Starting graceful shutdown...`);
+      server.close(async () => {
+        logger.info("HTTP server closed.");
+        await prisma.$disconnect();
+        await pool.end(); // Closes standard pg pool
+        logger.info("Database connection closed cleanly.");
+        process.exit(0);
+      });
+    };
+
+    process.on("SIGINT", () => shutdown("SIGINT"));
+    process.on("SIGTERM", () => shutdown("SIGTERM"));
+
+  } catch (error) {
+    logger.error({ err: error }, "Failed to connect to the database on startup");
+    process.exit(1);
+  }
+}
+
+startServer();
+```
+
+---
+
+# 🚀 19. Commands Reference
+
+* **Validate Schema:** `pnpm prisma validate`
+* **Generate Types:** `pnpm prisma generate`
+* **Push Local Schema to DB:** `pnpm prisma db push`
+* **Create Production Database Migration:** `pnpm prisma migrate dev --name <migration_name>`
